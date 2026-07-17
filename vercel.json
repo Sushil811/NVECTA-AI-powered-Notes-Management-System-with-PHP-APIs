@@ -9,7 +9,7 @@
       "framework": "vite"
     }
   },
-  "rewrites": [
+  "env": {"NEXT_PUBLIC_API_URL": "https://nvecta-ai-powered-notes-management.onrender.com/api"},
     {
       "source": "/api(/.*)?",
       "destination": {
