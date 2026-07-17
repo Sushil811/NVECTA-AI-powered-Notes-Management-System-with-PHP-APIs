@@ -1,0 +1,10 @@
+# Ignore heavy folders during Vercel uploads
+node_modules/
+vendor/
+.git/
+.gemini/
+backend/
+frontend/node_modules/
+frontend/dist/
+storage/
+bootstrap/cache/
