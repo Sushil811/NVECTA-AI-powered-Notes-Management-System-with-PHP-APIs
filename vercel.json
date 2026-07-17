@@ -1,28 +1,8 @@
 {
-  "services": {
-    "frontend": {
-      "root": "frontend",
-      "framework": "vite"
-    },
-    "backend": {
-      "root": "backend",
-      "framework": "vite"
-    }
-  },
-  "env": {"NEXT_PUBLIC_API_URL": "https://nvecta-ai-powered-notes-management.onrender.com/api"},
-    {
-      "source": "/api(/.*)?",
-      "destination": {
-        "type": "service",
-        "service": "backend"
-      }
-    },
-    {
-      "source": "/(.*)",
-      "destination": {
-        "type": "service",
-        "service": "frontend"
-      }
-    }
-  ]
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "https://nvecta-ai-powered-notes-management.onrender.com/api/$1" }
+  ],
+  "env": {
+    "NEXT_PUBLIC_API_URL": "https://nvecta-ai-powered-notes-management.onrender.com/api"
+  }
 }

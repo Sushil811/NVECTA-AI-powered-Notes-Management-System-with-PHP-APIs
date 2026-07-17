@@ -14,7 +14,11 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-// Public Authentication Routes
+Route::get('/health', function () {
+    return response()->json(['status' => 'ok']);
+});
+
+
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
