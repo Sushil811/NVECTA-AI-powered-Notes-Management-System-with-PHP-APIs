@@ -6,7 +6,6 @@ interface Note {
   title: string;
   content: string;
   summary?: string;
-  category: string;
   vector_id?: string;
   created_at: string;
   updated_at: string;
@@ -49,14 +48,12 @@ function App() {
   const [currentPage, setCurrentPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
   const [totalNotes, setTotalNotes] = useState(0);
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   
   // Note Modal Editor State
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [noteTitle, setNoteTitle] = useState('');
   const [noteContent, setNoteContent] = useState('');
-  const [noteCategory, setNoteCategory] = useState<string>('work');
   
   // App Action Loaders
   const [isLoading, setIsLoading] = useState(false);
@@ -94,7 +91,7 @@ function App() {
     if (token && currentView === 'dashboard' && !isSemantic) {
       fetchNotes(currentPage, searchQuery);
     }
-  }, [currentPage, isSemantic, token, currentView, selectedCategory]);
+  }, [currentPage, isSemantic, token, currentView]);
 
   const toggleTheme = () => {
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
@@ -204,9 +201,6 @@ function App() {
     setIsLoading(true);
     try {
       let url = `/notes?page=${page}&limit=6`;
-      if (selectedCategory !== 'all') {
-        url += `&category=${selectedCategory}`;
-      }
       if (search.trim()) {
         url += `&search=${encodeURIComponent(search)}`;
       }
@@ -259,7 +253,6 @@ function App() {
     setEditingNote(null);
     setNoteTitle('');
     setNoteContent('');
-    setNoteCategory('work');
     setIsEditorOpen(true);
   };
 
@@ -267,7 +260,6 @@ function App() {
     setEditingNote(note);
     setNoteTitle(note.title);
     setNoteContent(note.content);
-    setNoteCategory(note.category || 'work');
     setIsEditorOpen(true);
   };
 
@@ -282,17 +274,15 @@ function App() {
       if (isEdit) {
         await api.put(`/notes/${editingNote.id}`, {
           title: noteTitle,
-          content: noteContent,
-          category: noteCategory
+          content: noteContent
         });
-        showToast('Note updated and Qdrant index refreshed', 'success');
+        showToast('Note updated and vector index refreshed', 'success');
       } else {
         await api.post('/notes', {
           title: noteTitle,
-          content: noteContent,
-          category: noteCategory
+          content: noteContent
         });
-        showToast('Note created and Qdrant index updated', 'success');
+        showToast('Note created and vector index updated', 'success');
       }
 
       setIsEditorOpen(false);
@@ -311,7 +301,7 @@ function App() {
 
   const handleDeleteNote = async (id: number, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm('Are you sure you want to delete this note from MySQL and Qdrant?')) return;
+    if (!confirm('Are you sure you want to delete this note and its AI vector?')) return;
     
     try {
       await api.delete(`/notes/${id}`);
@@ -364,7 +354,7 @@ function App() {
             <h2 className="text-3xl font-bold tracking-tight text-center bg-gradient-to-r from-indigo-500 to-purple-600 bg-clip-text text-transparent font-heading">
               MindFlow AI
             </h2>
-            <p className="text-sm text-gray-500 mt-1">SaaS AI Note Management System</p>
+            <p className="text-sm text-[var(--text-muted)] mt-1">SaaS AI Note Management System</p>
           </div>
 
           {authError && (
@@ -402,7 +392,7 @@ function App() {
                 Sign In to Account
               </button>
               <div className="text-center mt-4">
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-[var(--text-muted)]">
                   Don't have an account?{' '}
                   <button 
                     type="button" 
@@ -468,7 +458,7 @@ function App() {
                 Create Account
               </button>
               <div className="text-center mt-4">
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-[var(--text-muted)]">
                   Already registered?{' '}
                   <button 
                     type="button" 
@@ -520,59 +510,10 @@ function App() {
           </div>
 
           <nav className="flex-1 space-y-2 text-sm font-semibold">
-            <button 
-              className={`w-full flex items-center justify-between p-2.5 rounded-lg transition text-left ${
-                selectedCategory === 'all' 
-                  ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' 
-                  : 'hover:bg-white/5 text-gray-400 hover:text-white'
-              }`}
-              onClick={() => {
-                setSelectedCategory('all');
-                setCurrentPage(1);
-              }}
-            >
+            <div className="w-full flex items-center justify-between p-2.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
               <span className="flex items-center gap-3">🗂️ All Notes</span>
               <span className="bg-indigo-500 text-white text-[10px] px-2 py-0.5 rounded-full">{totalNotes}</span>
-            </button>
-            <button 
-              className={`w-full flex items-center gap-3 p-2.5 rounded-lg transition text-left ${
-                selectedCategory === 'work' 
-                  ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' 
-                  : 'hover:bg-white/5 text-gray-400 hover:text-white'
-              }`}
-              onClick={() => {
-                setSelectedCategory('work');
-                setCurrentPage(1);
-              }}
-            >
-              <span>📁 Work Project</span>
-            </button>
-            <button 
-              className={`w-full flex items-center gap-3 p-2.5 rounded-lg transition text-left ${
-                selectedCategory === 'personal' 
-                  ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' 
-                  : 'hover:bg-white/5 text-gray-400 hover:text-white'
-              }`}
-              onClick={() => {
-                setSelectedCategory('personal');
-                setCurrentPage(1);
-              }}
-            >
-              <span>📁 Personal Log</span>
-            </button>
-            <button 
-              className={`w-full flex items-center gap-3 p-2.5 rounded-lg transition text-left ${
-                selectedCategory === 'ideas' 
-                  ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' 
-                  : 'hover:bg-white/5 text-gray-400 hover:text-white'
-              }`}
-              onClick={() => {
-                setSelectedCategory('ideas');
-                setCurrentPage(1);
-              }}
-            >
-              <span>💡 Brainstorm Ideas</span>
-            </button>
+            </div>
           </nav>
 
           <div className="pt-6 border-t border-white/5">
@@ -585,10 +526,9 @@ function App() {
         {/* MAIN BODY AREA */}
         <main className="flex-1 p-8 overflow-y-auto">
           {/* NAVBAR: Top Header */}
-          <header className="flex justify-between items-center mb-8 bg-white/5 backdrop-blur-xl border border-white/10 p-4 rounded-2xl shadow-sm">
+          <header className="flex justify-between items-center mb-8 bg-[var(--bg-glass)] backdrop-blur-xl border border-[var(--border-glass)] p-4 rounded-2xl shadow-sm">
             <div>
               <h2 className="text-xl font-bold tracking-tight font-heading">Workspace notes</h2>
-              <p className="text-xs text-gray-500">Secure Eloquent + MySQL + Qdrant similarity indexes</p>
             </div>
             <div className="flex items-center gap-4">
               <button className="btn-icon" onClick={toggleTheme} title="Toggle Dark/Light Mode">
@@ -664,8 +604,8 @@ function App() {
               </div>
             </div>
           ) : notes.length === 0 ? (
-            <div className="flex flex-col items-center justify-center p-12 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl">
-              <p className="text-sm text-gray-500 mb-4">No notes found. Create one to get started.</p>
+            <div className="flex flex-col items-center justify-center p-12 bg-[var(--bg-glass)] backdrop-blur-xl border border-[var(--border-glass)] rounded-2xl">
+              <p className="text-sm text-[var(--text-muted)] mb-4">No notes found. Create one to get started.</p>
               <button className="btn btn-primary" onClick={handleOpenCreate}>Add first note</button>
             </div>
           ) : (
@@ -684,17 +624,17 @@ function App() {
                         </span>
                       )}
                     </div>
-                    <div className="note-meta text-xs text-gray-500 mb-2">
+                    <div className="note-meta text-xs text-[var(--text-muted)] mb-2">
                       {new Date(note.created_at).toLocaleDateString(undefined, { 
                         month: 'short', 
                         day: 'numeric', 
                         year: 'numeric' 
                       })}
                     </div>
-                    <p className="note-content-preview text-sm text-gray-400 line-clamp-4 mb-4 flex-1">{note.content}</p>
+                    <p className="note-content-preview text-sm text-[var(--text-muted)] line-clamp-4 mb-4 flex-1">{note.content}</p>
                     
-                    <div className="note-footer flex justify-between items-center pt-3 border-t border-white/5">
-                      <span className="text-xs text-indigo-400 font-semibold cursor-pointer">Open Details</span>
+                    <div className="note-footer flex justify-between items-center pt-3 border-t border-[var(--border-glass)]">
+                      <span className="text-xs text-[var(--accent-primary)] font-semibold cursor-pointer">Open Details</span>
                       <div className="card-actions flex gap-2">
                         <button 
                           className="btn-icon w-8 h-8 text-xs text-red-500 hover:bg-red-500/10 border-red-500/10" 
@@ -745,7 +685,7 @@ function App() {
       {/* CREATE / EDIT NOTE FORM MODAL */}
       {isEditorOpen && (
         <div className="modal-overlay" onClick={() => setIsEditorOpen(false)}>
-          <div className="modal-content max-w-2xl border border-white/10" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content max-w-2xl border border-[var(--border-glass)]" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="text-lg font-bold font-heading">{editingNote ? 'Edit note details' : 'Write new note'}</h3>
               <button className="btn-icon" onClick={() => setIsEditorOpen(false)}>✕</button>
@@ -763,20 +703,6 @@ function App() {
             </div>
 
             <div className="form-group mb-4">
-              <label className="form-label text-xs">FOLDER CATEGORY</label>
-              <select 
-                className="form-input text-sm" 
-                value={noteCategory} 
-                onChange={(e) => setNoteCategory(e.target.value)}
-                style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)' }}
-              >
-                <option value="work">💼 Work Project</option>
-                <option value="personal">🔒 Personal Log</option>
-                <option value="ideas">💡 Brainstorm Ideas</option>
-              </select>
-            </div>
-
-            <div className="form-group mb-4">
               <label className="form-label text-xs">CONTENT BODY</label>
               <textarea 
                 className="form-textarea text-sm h-48"
@@ -790,11 +716,11 @@ function App() {
             {editingNote && (
               <div className="ai-summary-box mt-4 p-4 rounded-xl border border-dashed border-indigo-500/40 bg-indigo-500/5">
                 <div className="ai-summary-header flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-1.5 text-indigo-400 font-bold text-xs">
+                  <div className="flex items-center gap-1.5 text-[var(--accent-primary)] font-bold text-xs">
                     <span>✨ AI Summary Insight</span>
                   </div>
                   <button 
-                    className="btn btn-secondary py-1 px-3 text-xs bg-white/5 border-white/10 hover:bg-white/10"
+                    className="btn btn-secondary py-1 px-3 text-xs"
                     onClick={handleGenerateSummary}
                     disabled={isSummarizing}
                   >
@@ -808,11 +734,11 @@ function App() {
                     )}
                   </button>
                 </div>
-                <div className="ai-summary-content text-sm leading-relaxed text-gray-300">
+                <div className="ai-summary-content text-sm leading-relaxed text-[var(--text-primary)] opacity-90">
                   {editingNote.summary ? (
                     <p className="whitespace-pre-line">{editingNote.summary}</p>
                   ) : (
-                    <p className="text-xs text-gray-500 italic">No summary exists. Click the button to summarize.</p>
+                    <p className="text-xs text-[var(--text-muted)] italic">No summary exists. Click the button to summarize.</p>
                   )}
                 </div>
               </div>

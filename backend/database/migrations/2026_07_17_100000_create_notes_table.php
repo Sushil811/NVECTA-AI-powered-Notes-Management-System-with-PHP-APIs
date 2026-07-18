@@ -18,7 +18,7 @@ return new class extends Migration
             $table->longText('content');
             $table->text('summary')->nullable();
             $table->string('category')->default('work'); // Added note category: 'work', 'personal', 'ideas'
-            $table->string('vector_id')->nullable(); // Reference to vector in Qdrant database
+            $table->string('vector_id')->nullable(); // Reference to vector in local database
             $table->timestamps();
 
             // Setup required indexes

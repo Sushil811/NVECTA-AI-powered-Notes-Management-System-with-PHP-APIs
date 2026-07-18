@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "MindFlow AI Notes Management API Documentation",
-    "description": "API backend specification for a complete production-ready Notes Management System with Sanctum Authentication, MySQL, and Qdrant Cloud vector search integration.",
+    "description": "API backend specification for a complete production-ready Notes Management System with Sanctum Authentication, MySQL, and local vector database search integration.",
     "version": "1.0.0"
   },
   "servers": [
@@ -149,7 +149,7 @@
       },
       "post": {
         "summary": "Create Note",
-        "description": "Saves note content to MySQL, triggers Gemini embeddings generation, and indexes the vector in Qdrant.",
+        "description": "Saves note content to MySQL, triggers Gemini embeddings generation, and indexes the vector in the local database.",
         "security": [
           {
             "bearerAuth": []
@@ -227,7 +227,7 @@
       },
       "put": {
         "summary": "Update Note",
-        "description": "Updates MySQL record, regenerates embedding vector, and refreshes the Qdrant index.",
+        "description": "Updates MySQL record, regenerates embedding vector, and refreshes the local vector database.",
         "security": [
           {
             "bearerAuth": []
@@ -272,7 +272,7 @@
       },
       "delete": {
         "summary": "Delete Note",
-        "description": "Removes MySQL note records and deletes vector indexes from Qdrant.",
+        "description": "Removes MySQL note records and deletes vector indexes from the local vector database.",
         "security": [
           {
             "bearerAuth": []
@@ -335,7 +335,7 @@
     "/api/search": {
       "get": {
         "summary": "AI Semantic Search",
-        "description": "Converts search query into embeddings and runs similarity queries inside Qdrant. Resolves matched note records from MySQL.",
+        "description": "Converts search query into embeddings and runs similarity queries inside the local vector database. Resolves matched note records from MySQL.",
         "security": [
           {
             "bearerAuth": []

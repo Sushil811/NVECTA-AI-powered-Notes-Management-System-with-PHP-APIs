@@ -27,11 +27,11 @@ class GeminiService
             try {
                 $response = Http::withHeaders([
                     'Content-Type' => 'application/json',
-                ])->post("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={$this->apiKey}", [
+                ])->post("https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key={$this->apiKey}", [
                     'contents' => [
                         [
                             'parts' => [
-                                ['text' => "Summarize the following note content in 2-3 short, bulleted sentences. Be direct, clear, and concise. Do not add introductory remarks:\n\n" . $content]
+                                ['text' => "Provide a detailed and comprehensive summary of the following note content. Include a brief overview paragraph followed by bullet points for the key takeaways to capture all important details. Be thorough and insightful. Do not add introductory remarks:\n\n" . $content]
                             ]
                         ]
                     ]
@@ -65,7 +65,7 @@ class GeminiService
             try {
                 $response = Http::withHeaders([
                     'Content-Type' => 'application/json',
-                ])->post("https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key={$this->apiKey}", [
+                    ])->post("https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2:embedContent?key={$this->apiKey}", [
                     'content' => [
                         'parts' => [
                             ['text' => $text]

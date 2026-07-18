@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Note;
 use App\Services\GeminiService;
 use App\Services\EmbeddingService;
-use App\Services\QdrantService;
+use App\Services\VectorDatabaseService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,16 +16,13 @@ class NoteController extends Controller
 {
     protected GeminiService $gemini;
     protected EmbeddingService $embedding;
-    protected QdrantService $qdrant;
+    protected VectorDatabaseService $vectorDb;
 
-    public function __construct(GeminiService $gemini, EmbeddingService $embedding, QdrantService $qdrant)
+    public function __construct(GeminiService $gemini, EmbeddingService $embedding, VectorDatabaseService $vectorDb)
     {
         $this->gemini = $gemini;
         $this->embedding = $embedding;
-        $this->qdrant = $qdrant;
-
-        // Initialize Qdrant collection
-        $this->qdrant->createCollection();
+        $this->vectorDb = $vectorDb;
     }
 
     /**
@@ -36,16 +33,18 @@ class NoteController extends Controller
     {
         $limit = intval($request->query('limit', 10));
         $limit = max(1, min(100, $limit));
-        $category = $request->query('category', '');
+        $search = $request->query('search', '');
 
         $user = $request->user();
 
         // Retrieve only this user's notes, sorted newest first
         $query = Note::where('user_id', $user->id)->latest('created_at');
 
-        // Apply category filter if requested
-        if (!empty($category) && in_array($category, ['work', 'personal', 'ideas'])) {
-            $query->where('category', $category);
+        if (!empty($search)) {
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                  ->orWhere('content', 'like', "%{$search}%");
+            });
         }
 
         $paginated = $query->paginate($limit);
@@ -57,7 +56,6 @@ class NoteController extends Controller
                 'title' => $note->title,
                 'content' => $note->content,
                 'summary' => $note->summary,
-                'category' => $note->category,
                 'vector_id' => $note->vector_id,
                 'created_at' => $note->created_at->toIso8601String(),
                 'updated_at' => $note->updated_at->toIso8601String(),
@@ -85,7 +83,6 @@ class NoteController extends Controller
         $validator = Validator::make($request->all(), [
             'title' => 'required|string|max:255',
             'content' => 'required|string',
-            'category' => 'nullable|string|in:work,personal,ideas',
         ]);
 
         if ($validator->fails()) {
@@ -100,29 +97,26 @@ class NoteController extends Controller
             DB::beginTransaction();
 
             $user = $request->user();
-            $category = $request->input('category', 'work');
-
             // Create note record first to get ID
             $note = Note::create([
                 'user_id' => $user->id,
                 'title' => $request->title,
                 'content' => $request->content,
-                'category' => $category,
             ]);
 
             // Generate AI embedding
-            $textToEmbed = "Title: {$note->title}\nCategory: {$note->category}\nContent: {$note->content}";
+            $textToEmbed = "Title: {$note->title}\nContent: {$note->content}";
             $vector = $this->embedding->getEmbedding($textToEmbed);
 
-            // Store vector in Qdrant with user payload for isolated searching
-            $vectorId = (string)$note->id; // Qdrant allows stringified integers or UUIDs
-            $this->qdrant->storeVector((int)$vectorId, $vector, [
+            // Store vector in local database with user payload for isolated searching
+            $vectorId = (string)$note->id; 
+            $this->vectorDb->storeVector((int)$vectorId, $vector, [
                 'note_id' => $note->id,
                 'user_id' => $user->id,
                 'title' => $note->title
             ]);
 
-            // Save the Qdrant reference back to MySQL
+            // Save the vector database reference back to MySQL
             $note->update(['vector_id' => $vectorId]);
 
             DB::commit();
@@ -135,12 +129,11 @@ class NoteController extends Controller
                     'title' => $note->title,
                     'content' => $note->content,
                     'summary' => $note->summary,
-                    'category' => $note->category,
                     'vector_id' => $note->vector_id,
                     'created_at' => $note->created_at->toIso8601String(),
                     'updated_at' => $note->updated_at->toIso8601String(),
                 ]
-            ], 210); // 201 Created
+            ], 201); // 201 Created
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -175,7 +168,6 @@ class NoteController extends Controller
                 'title' => $note->title,
                 'content' => $note->content,
                 'summary' => $note->summary,
-                'category' => $note->category,
                 'vector_id' => $note->vector_id,
                 'created_at' => $note->created_at->toIso8601String(),
                 'updated_at' => $note->updated_at->toIso8601String(),
@@ -202,7 +194,6 @@ class NoteController extends Controller
         $validator = Validator::make($request->all(), [
             'title' => 'required|string|max:255',
             'content' => 'required|string',
-            'category' => 'nullable|string|in:work,personal,ideas',
         ]);
 
         if ($validator->fails()) {
@@ -215,21 +206,18 @@ class NoteController extends Controller
 
         try {
             DB::beginTransaction();
-            $category = $request->input('category', $note->category);
-
             $note->update([
                 'title' => $request->title,
                 'content' => $request->content,
-                'category' => $category,
             ]);
 
             // Regenerate embedding vector
-            $textToEmbed = "Title: {$note->title}\nCategory: {$note->category}\nContent: {$note->content}";
+            $textToEmbed = "Title: {$note->title}\nContent: {$note->content}";
             $vector = $this->embedding->getEmbedding($textToEmbed);
 
-            // Update Qdrant vector point
+            // Update local vector database point
             $vectorId = $note->vector_id ?: (string)$note->id;
-            $this->qdrant->storeVector((int)$vectorId, $vector, [
+            $this->vectorDb->storeVector((int)$vectorId, $vector, [
                 'note_id' => $note->id,
                 'user_id' => $user->id,
                 'title' => $note->title
@@ -249,7 +237,6 @@ class NoteController extends Controller
                     'title' => $note->title,
                     'content' => $note->content,
                     'summary' => $note->summary,
-                    'category' => $note->category,
                     'vector_id' => $note->vector_id,
                     'created_at' => $note->created_at->toIso8601String(),
                     'updated_at' => $note->updated_at->toIso8601String(),
@@ -285,9 +272,9 @@ class NoteController extends Controller
         try {
             DB::beginTransaction();
 
-            // Remove vector from Qdrant
+            // Remove vector from local vector database
             if ($note->vector_id) {
-                $this->qdrant->deleteVector((int)$note->vector_id);
+                $this->vectorDb->deleteVector((int)$note->vector_id);
             }
 
             // Delete MySQL record
@@ -366,8 +353,8 @@ class NoteController extends Controller
             // 1. Generate query embedding vector
             $queryVector = $this->embedding->getEmbedding($query);
 
-            // 2. Search similar vectors in Qdrant (filtered by user_id)
-            $matches = $this->qdrant->searchVector($queryVector, $user->id, 15);
+            // 2. Search similar vectors in local database (filtered by user_id)
+            $matches = $this->vectorDb->searchVector($queryVector, $user->id, 15);
 
             // 3. Get note IDs
             $noteIds = array_column($matches, 'id');
@@ -392,7 +379,6 @@ class NoteController extends Controller
                         'title' => $note->title,
                         'content' => $note->content,
                         'summary' => $note->summary,
-                        'category' => $note->category,
                         'vector_id' => $note->vector_id,
                         'score' => round($match['score'], 4),
                         'created_at' => $note->created_at->toIso8601String(),
