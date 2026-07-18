@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mindflow_backend
+    restart: unless-stopped
+    volumes:
+      - ./backend:/var/www
+    environment:
+      - APP_ENV=production
+      - APP_DEBUG=false
+    # You must provide your RDS connection strings in the backend/.env file on the server
+    
+  webserver:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: mindflow_webserver
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./backend:/var/www
+    depends_on:
+      - backend
